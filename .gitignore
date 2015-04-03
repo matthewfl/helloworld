@@ -1,0 +1,5 @@
+.deps
+*.o
+hello-world
+*.egg-info
+build/
