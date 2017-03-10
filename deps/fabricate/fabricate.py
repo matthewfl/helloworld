@@ -140,8 +140,12 @@ def relative_to_abs_paths(args):
         ret.append(' '.join(s))
     return ret
 
-def Shell(args, **kwargs):
-    shell(*shlex.split(args), silent=False, **kwargs)
+def Shell(args, silent=False, **kwargs):
+    #if silent:
+    return shell(*shlex.split(args), silent=silent, **kwargs)
+    # import ipdb; ipdb.set_trace();
+    # pwd = os.path.abspath('.')
+    # return run('sh', '-c', 'cd {} && {}'.format(pwd, args))
 
 def shell(*args, **kwargs):
     r""" Run a command: program name is given in first arg and command line
@@ -176,7 +180,7 @@ def shell(*args, **kwargs):
         sys.stderr.flush()
         sys.stdout.flush()
 
-def _shell(args, input=None, silent=True, shell=False, ignore_status=False, **kwargs):
+def _shell(args, input=None, silent=False, shell=False, ignore_status=False, **kwargs):
     if input:
         stdin = subprocess.PIPE
     else:
@@ -1409,9 +1413,9 @@ def run(*args, **kwargs):
         return [default_builder.run(*a, **kwargs) for a in args[0]]
     return default_builder.run(*args, **kwargs)
 
-def Run(cmd):
+def Run(cmd, **kwargs):
     lex = shlex.split(cmd)
-    run(*lex)
+    run(*lex, **kwargs)
 
 def after(*args):
     """ wait until after the specified command groups complete and return
@@ -1590,8 +1594,8 @@ def main(globals_dict=None, build_dir=None, extra_options=None, builder=None,
             name = action.split('(')[0].split('.')[0]
             if name in globals_dict:
                 this_status = eval(action, globals_dict)
-                if this_status:
-                    status = int(this_status)
+                if this_status and isinstance(this_status, int):
+                    status = this_status
             else:
                 printerr('%r command not defined!' % action)
                 sys.exit(1)
@@ -1599,6 +1603,11 @@ def main(globals_dict=None, build_dir=None, extra_options=None, builder=None,
     except ExecutionError, exc:
         message, data, status = exc
         printerr('fabricate: ' + message)
+    except KeyboardInterrupt:
+        # TODO: make keyboard interupts work better
+        if _pool:
+            _pool.terminate()
+        sys.exit(1)
     finally:
         _stop_results.set() # stop the results gatherer so I don't hang
         if not options.quiet and os.path.abspath(build_dir) != original_path:
